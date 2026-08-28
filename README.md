@@ -129,10 +129,15 @@ To switch from the **Continuous Wave (CW)** tab to the **Sweep** tab, swipe righ
 * **17- Count Button**  
   Sets the total number of sweep iterations. Enter `0` for continuous execution.
 
-* **18- Type Button**  
-![type lin](docs/images/type_lin.png) Linear
-![type log](docs/images/type_log.png) Logarithmic
-  Sets how the sweep frequency progresses between the Start and Stop values. Linear uses a constant frequency step, while Logarithmic increases the frequency by a proportional ratio.
+* **18- Type Button**
+
+ ![type lin](docs/images/type_lin.png)  
+ **Linear**
+
+ ![type log](docs/images/type_log.png)  
+ **Logarithmic**
+
+ Sets how the sweep frequency progresses between the Start and Stop values. Linear uses a constant frequency step, while Logarithmic increases the frequency by a proportional ratio.
 
 * **19- Sweep Start/Stop Button**  
   Starts or stops the frequency sweep sequence.
