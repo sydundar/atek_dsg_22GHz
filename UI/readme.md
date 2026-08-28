@@ -144,6 +144,9 @@ python -m esptool --chip esp32s3 merge_bin -o merged-firmware.bin --flash-mode k
 2. Go to the **Settings** tab and click **FIRMWARE UPDATE**.
 3. Select the merged `.bin` file (e.g. `merged-firmware.bin`).
 4. Confirm the prompt. Progress is streamed to the System Logs panel.
+5. The date and time when the software was installed are displayed in the bottom-left corner of the UI panel.
+
+
 
 ---
 
