@@ -137,7 +137,7 @@ To switch from the **Continuous Wave (CW)** tab to the **Sweep** tab, swipe righ
   ![type log](docs/images/type_log.png)  
   **Logarithmic**
 
- Sets how the sweep frequency progresses between the Start and Stop values. Linear uses a constant frequency step, while Logarithmic increases the frequency by a proportional ratio.
+  Sets how the sweep frequency progresses between the Start and Stop values. Linear uses a constant frequency step, while Logarithmic increases the frequency by a proportional ratio.
 
 * **19- Sweep Start/Stop Button**  
   Starts or stops the frequency sweep sequence.
