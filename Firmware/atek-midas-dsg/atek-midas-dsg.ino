@@ -9,8 +9,10 @@
 #include "ADC78H90.h"
 #include "RemoteControl.h"
 
-const char *apSSID = "ATEK_DSG_22GHz";
 const char *apPassword = "12345678";
+
+String apSSID = "ATEK_DSG_22.6GHz";
+String deviceSerial = "UNKNOWN";
 
 String currentFrequency; 
 String currentAmplitude;  
@@ -32,9 +34,11 @@ extern String StepUnitForSweepMenu;
 extern String DwellValueForSweepMenu;
 extern String AmpValueSweepForSweepMenu;
 extern String StepTypeValueForSweepMenu;
+extern String CountValueForSweepMenu;
 extern bool isSweepRunning;
 extern MenuState currentMenu;
 extern double currentHz; 
+extern uint32_t sweepCycleCount;
 
 // Global variables to store real-time telemetry data
 float last_usb_voltage = 0.0;
@@ -85,6 +89,17 @@ uint16_t calibCount = 0;
 
 void InitCalibrationData() {
     preferences.begin("calib", false);
+
+    // DSG serial number
+    deviceSerial = preferences.getString("serial", "UNKNOWN");
+
+    // Create device-specific Wi-Fi SSID
+    if (deviceSerial != "UNKNOWN" && deviceSerial.length() > 0) {
+      apSSID = "ATEK_DSG_22.6GHz_" + deviceSerial;
+      } else {
+        apSSID = "ATEK_DSG_22.6GHz";
+        }
+
     calibCount = preferences.getUShort("count", 0);
     if (calibCount > 0 && calibCount <= MAX_CALIB_POINTS) {
         size_t dataLen = calibCount * sizeof(CalibData);
@@ -101,10 +116,13 @@ void InitCalibrationData() {
 
 void SaveCalibrationToNVS() {
     preferences.begin("calib", false);
+
+    preferences.putString("serial", deviceSerial);
     preferences.putUShort("count", calibCount);
     preferences.putBytes("data", calibTable, calibCount * sizeof(CalibData));
+    
     preferences.end();
-    Serial.println("[NVS] Kalibrasyon NVS'e kaydedildi.");
+    Serial.println("[NVS] Kalibrasyon ve seri numarasi NVS'e kaydedildi.");
 }
 
 void ClearCalibrationRAM() {
@@ -266,9 +284,6 @@ void setup() {
 
   drawMainMenu();
   SetRfOnOff(false);
-   
-  SetTemp("24");
-  SetUSBVoltge("5.1");
 
   SetFreqUnitOnMainMenu(currentFreqUnit);
   SetFreqOnMainMenu(currentFrequency);
@@ -287,14 +302,19 @@ void setup() {
   Serial.print("\r\n");
   InitADC();
 
+  temp = Read_Temp(); 
+  last_usb_voltage = Read_5V_Voltage();
+  SetTemp(String(temp, 1).c_str());
+  SetUSBVoltge(String(last_usb_voltage, 1).c_str()); 
+
   IO_EXP1_Init();
 
   ConnectionStatus("Wait...", true);  delay(1000);
 
   InitPLL();
   bool Filtered = true;
-  SetFilter(Filtered);
-  Lmx2820SetFreqinMHz(6000, 10000000, Filtered);
+  SetFilter(FilterStatus);
+  Lmx2820SetFreqinMHz(6000, 10000000, FilterStatus);
 }
 
 // --------------------------------------------------------------
@@ -318,7 +338,7 @@ void WiFiTask(void *parameter) {
     IPAddress gateway(192, 168, 4, 1);
     IPAddress subnet(255, 255, 255, 0);
     WiFi.softAPConfig(local_IP, gateway, subnet);
-    WiFi.softAP(apSSID, apPassword);
+    WiFi.softAP(apSSID.c_str(), apPassword);
     String dots = "";
     int retries = 0;
     while (WiFi.softAPIP().toString() != "192.168.4.1" && retries++ < 50) {
@@ -592,6 +612,14 @@ String getHTML() {
             <option value="Log" )=====" + String(StepTypeValueForSweepMenu == "Log" ? "selected" : "") + R"=====(>Logarithmic (LOG)</option>
         </select>
 
+        <label>Sweep Count (0 = &#8734;):</label>
+        <input type="number"
+               id="sw_count"
+               min="0"
+               step="1"
+               value=")=====" + CountValueForSweepMenu + R"=====("
+               style="width:100%; margin-bottom:15px;">
+
         <button class="wide-button" id="applySweep" style="background-color:#89b4fa;">LOAD SWEEP SETTINGS</button>
         <button class="wide-button" id="btn_sweep_toggle" style="background-color:)=====" + btnSweepColor + R"=====(">)=====" + btnSweepText + R"=====(</button>
     </div>
@@ -634,6 +662,7 @@ String getHTML() {
               document.getElementById('sw_dwell').value = data.sw_dwell;
               document.getElementById('sw_att').value = data.sw_amp;
               document.getElementById('sw_type').value = data.sw_type;
+              document.getElementById('sw_count').value = data.sw_count;
               
               const btnRf = document.getElementById('btn_rf');
               if (data.rf_out == 1) {
@@ -664,6 +693,31 @@ String getHTML() {
           if(unit === 'GHz') return val * 1e9;
           return val;
       }
+
+      function validateFrequency(value, unit) {
+        const hz = getHz(parseFloat(value), unit);
+        
+        const minHz = 150e6;   // 150 MHz
+        const maxHz = 22.6e9;  // 22.6 GHz
+
+        if (isNaN(hz)) {
+          alert("Please enter a valid frequency.");
+          return false;
+        }
+        
+        if (hz < minHz) {
+          alert("Frequency is below 150 MHz. Please enter a value between 150 MHz and 22.6 GHz.");
+          return false;
+        }
+        
+        if (hz > maxHz) {
+          alert("Frequency is above 22.6 GHz. Please enter a value between 150 MHz and 22.6 GHz.");
+          return false;
+        }
+
+        return true;
+      }
+
       function fromHz(hz, unit) {
           if(unit === 'KHz') return hz / 1e3;
           if(unit === 'MHz') return hz / 1e6;
@@ -709,6 +763,10 @@ String getHTML() {
           const att = document.getElementById('amplitude').value;
           const filt = document.getElementById('filterSelect').value;
 
+          if (!validateFrequency(freq, unit)) {
+            return;
+          }
+
           fetch('/applyCW', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -750,16 +808,25 @@ String getHTML() {
           const start_u = document.getElementById('sw_start_unit').value;
           const stop = document.getElementById('sw_stop').value;
           const stop_u = document.getElementById('sw_stop_unit').value;
+          if (!validateFrequency(start, start_u)) {
+            return;
+          }
+
+          if (!validateFrequency(stop, stop_u)) {
+            return;
+          }
+
           const step = document.getElementById('sw_step').value;
           const step_u = document.getElementById('sw_step_unit').value;
           const dwell = document.getElementById('sw_dwell').value;
           const att = document.getElementById('sw_att').value;
           const type = document.getElementById('sw_type').value;
+          const count = document.getElementById('sw_count').value;
 
           fetch('/applySweep', {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: `start=${start}&start_u=${start_u}&stop=${stop}&stop_u=${stop_u}&step=${step}&step_u=${step_u}&dwell=${dwell}&att=${att}&type=${type}`
+              body: `start=${start}&start_u=${start_u}&stop=${stop}&stop_u=${stop_u}&step=${step}&step_u=${step_u}&dwell=${dwell}&att=${att}&type=${type}&count=${count}`
           })
           .then(response => response.text())
           .then(data => {
@@ -799,6 +866,27 @@ String getHTML() {
               document.getElementById('live_power').innerText = `Power: ${data.power} W`;
               document.getElementById('live_temp').innerText = `Temperature: ${data.temp} C`;
               
+              const btnSweep = document.getElementById('btn_sweep_toggle');
+              const btnRf = document.getElementById('btn_rf');
+
+              if (data.sw_run === 1) {
+                btnSweep.style.backgroundColor = "#f38ba8";
+                btnSweep.innerHTML = "&#9209; STOP SWEEP";
+
+                btnRf.style.backgroundColor = "#f9e2af";
+                btnRf.innerText = "RF OUTPUT: SWP";
+              }
+              else {
+                // Only reset RF indication if the web page was previously in Sweep mode
+                if (btnSweep.innerText.includes("STOP SWEEP")) {
+                  btnRf.style.backgroundColor = "#f38ba8";
+                  btnRf.innerText = "RF OUTPUT: OFF";
+                }
+
+                btnSweep.style.backgroundColor = "#a6e3a1";
+                btnSweep.innerHTML = "&#9654; START SWEEP";
+              }
+
               const pll = document.getElementById('live_pll');
               if (data.lock === 1) {
                   pll.innerText = "LD Result: LOCKED";
@@ -844,7 +932,8 @@ void handleTelemetry() {
     json += "\"curr\":\"" + String(last_dsg_current, 2) + "\",";
     json += "\"power\":\"" + String(last_usb_voltage * last_dsg_current, 2) + "\",";
     json += "\"temp\":\"" + String(temp, 1) + "\",";
-    json += "\"lock\":" + String(last_pll_lock ? 1 : 0);
+    json += "\"lock\":" + String(last_pll_lock ? 1 : 0) + ",";
+    json += "\"sw_run\":" + String(isSweepRunning ? 1 : 0);
     json += "}";
     server.send(200, "application/json", json);
 }
@@ -862,6 +951,7 @@ void handleGetSettings() {
     extern String DwellValueForSweepMenu;
     extern String AmpValueSweepForSweepMenu;
     extern String StepTypeValueForSweepMenu;
+    extern String CountValueForSweepMenu;
     extern bool rfOutputEnabled;
     extern bool isSweepRunning;
 
@@ -879,6 +969,7 @@ void handleGetSettings() {
     json += "\"sw_dwell\":\"" + DwellValueForSweepMenu + "\",";
     json += "\"sw_amp\":\"" + AmpValueSweepForSweepMenu + "\",";
     json += "\"sw_type\":\"" + StepTypeValueForSweepMenu + "\",";
+    json += "\"sw_count\":\"" + CountValueForSweepMenu + "\",";
     json += "\"rf_out\":" + String(rfOutputEnabled ? 1 : 0) + ",";
     json += "\"sw_run\":" + String(isSweepRunning ? 1 : 0);
     json += "}";
@@ -969,6 +1060,7 @@ void handleApplySweep() {
     String dwell = server.arg("dwell");
     String att = server.arg("att");
     String type = server.arg("type");
+    String count = server.arg("count");
 
     // 2. Convert all sweep parameters into SCPI-style commands and pass them to the system.
     String cmdStart = "SWEEP:STAR " + start + start_u;
@@ -990,6 +1082,9 @@ void handleApplySweep() {
     String cmdType = "SWEEP:TYPE " + type;
     RC_HandleLine((char*)cmdType.c_str());
 
+    String cmdCount = "SWEEP:COUN " + count;
+    RC_HandleLine((char*)cmdCount.c_str());
+
     server.send(200, "text/plain", "Sweep Settings Applied");
 }
 
@@ -1004,6 +1099,7 @@ void handleToggleSweep() {
     
     if (isSweepRunning) {
         currentHz = 0; 
+        sweepCycleCount = 0;
         SetRfOnOff(true);
         rfOutputEnabled = true;
     } else {
@@ -1061,7 +1157,7 @@ void manageWiFiConnection() {
     {
       ConnectionStatus("Hotspot...", true);
       WiFi.mode(WIFI_AP);
-      WiFi.softAP(apSSID, apPassword);
+      WiFi.softAP(apSSID.c_str(), apPassword);
       
       int retries = 0;
       String dots = "";

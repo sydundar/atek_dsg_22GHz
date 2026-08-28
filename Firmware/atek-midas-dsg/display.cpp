@@ -10,6 +10,8 @@
 
 extern void RC_HandleLine(char *line);
 
+extern bool rfOutputEnabled;
+
 #define PIN_I2C_SDA 18
 #define PIN_I2C_SCL 17
 #define DISPLAY_X 320
@@ -66,6 +68,7 @@ String StartUnitForSweepMenu = "MHz";
 String StopUnitForSweepMenu  = "MHz";
 String StepUnitForSweepMenu  = "MHz";
 void SetTypeOnSweepMenu(String type);
+static void SetFilterOnSweepMenu(bool value);
 
 
 void setupTDisplayS3() {
@@ -278,7 +281,7 @@ void GetTouchData(int x, int y) {
     else if (x > XposEBD0 && x < XposEBD0 + ButtonWidth) {
       if (y > Ypos7890G && y < Ypos7890G + ButtonHeight) { Serial.println("Pressed: 0"); enteredDecimalValue += "0"; }
       else if (y > Ypos456DM && y < Ypos456DM + ButtonHeight) { Serial.println("Pressed: .");    if (enteredDecimalValue.indexOf('.') == -1) enteredDecimalValue += ".";   }
-      else if (y > YposEX && y < YposEX + ButtonHeight) { Serial.println("Pressed: Enter"); enteredDecimalValue = enteredDecimalValue;   drawActiveMenu();  }
+      else if (y > YposEX && y < YposEX + ButtonHeight) { Serial.println("Pressed: Enter");  if (currentMenu == SWP_COUNT_MENU && enteredDecimalValue.length() == 0) {enteredDecimalValue = "0";}  if (currentMenu == DWELL_MENU && enteredDecimalValue.length() == 0) {enteredDecimalValue = "1";}  drawActiveMenu();  }
       else if (y > Ypos123BK && y < Ypos123BK + ButtonHeight) { Serial.println("Pressed: Backspace");      if (!enteredDecimalValue.isEmpty()) enteredDecimalValue.remove(enteredDecimalValue.length() - 1);  }
     }
 
@@ -341,6 +344,21 @@ void GetTouchData(int x, int y) {
           // Update the screen.
           SetTypeOnSweepMenu(StepTypeValueForSweepMenu);
       }
+      else if (x >= 186 && x <= 235 && y >= 125 && y <= 169)
+      {  // Sweep Filter toggle
+          Serial.println("Sweep Filter Button Pressed");
+          if (!isSweepRunning)
+          {
+            FilterStatus = !FilterStatus;
+            SetFilter(FilterStatus);
+            SetFilterOnSweepMenu(FilterStatus);
+          }
+          else
+          {
+             Serial.println("Sweep Filter change ignored while sweep is running");
+          }
+      }
+      
       else if (x >= 260 && x <= 320 && y >= 120 && y <= 160)    
       {  // Sweep Start/Stop Button
         Serial.println("Sweep Start/Stop Button Pressed");
@@ -491,6 +509,7 @@ bool checkenteredFreqValue(String FreqVal) {
  
 
 bool checkenteredAmpValue() {
+   if (enteredAmpValue.length() == 0) { enteredAmpValue = "0"; }  
     String tempAmp = enteredAmpValue;
     double AmpValue = tempAmp.toDouble();
 
@@ -790,6 +809,9 @@ void drawSweepMenu()
   // Display the Type (Lin/Log) information on the screen.
   SetTypeOnSweepMenu(StepTypeValueForSweepMenu);
 
+  // Display current shared Filter status on Sweep screen.
+  SetFilterOnSweepMenu(FilterStatus);
+
   if (enteredFrom == START_MENU) { StartValueForSweepMenu = enteredFreqValue; }
   else if (enteredFrom == STOP_MENU) { StopValueForSweepMenu = enteredFreqValue; }
   else if (enteredFrom == STEP_MENU) { StepValueForSweepMenu = enteredFreqValue; }      
@@ -805,6 +827,20 @@ void drawSweepMenu()
   SetSCountOnSweepMenu(CountValueForSweepMenu);
 
 
+}
+
+static void SetFilterOnSweepMenu(bool value)
+{
+    if (currentMenu != SWEEP_MENU) return;
+
+    if (value)
+    {
+        tft.pushImage(190, 128, 40, 35, (uint16_t*)FilterON);
+    }
+    else
+    {
+        tft.pushImage(190, 128, 40, 35, (uint16_t*)FilterOFF);
+    }
 }
 
 void SetSaveButton()
@@ -1105,29 +1141,33 @@ void SetFilter(bool FilState)
 
     if (FilState)
     {
-      tft.pushImage(80, 100, 40, 35, (uint16_t*)FilterON);
-      //
-      tft.fillRect(127, 100, 120, 31,  tft.color565(46, 116, 181)); // Clear old value
-      tft.setTextColor(tft.color565(50, 50, 50), tft.color565(46, 116, 181));
-      tft.setCursor(127, 124);
-      tft.setFreeFont(&FreeSansBold9pt7b);
-      tft.print("2-18 GHz");
-      //
-      SetFilterBand(freqValue / 1000000.0); 
-      //
-      Lmx2820SetFreqinMHz(fMHz,10000000, true); // Selects Filtered Path 
+      if (currentMenu == MAIN_MENU)
+      {
+        tft.pushImage(80, 100, 40, 35, (uint16_t*)FilterON);
+
+        tft.fillRect(127, 100, 120, 31, tft.color565(46, 116, 181));
+        tft.setTextColor(tft.color565(50, 50, 50), tft.color565(46, 116, 181));
+        tft.setCursor(127, 124);
+        tft.setFreeFont(&FreeSansBold9pt7b);
+        tft.print("2-18 GHz");
+      }
+
+      SetFilterBand(freqValue / 1000000.0);
+
+      Lmx2820SetFreqinMHz(fMHz, 10000000, true);
     }
     else
     {
-      Lmx2820SetFreqinMHz(fMHz,10000000, false);  // Selects Un-Filtered Path
-      //
-      tft.pushImage(80, 100, 40, 35, (uint16_t*)FilterOFF); 
-      //
-      tft.fillRect(127, 100, 120, 31,  tft.color565(46, 116, 181)); // Clear old value
-      tft.setTextColor(tft.color565(50, 50, 50), tft.color565(46, 116, 181));
-      tft.setCursor(127, 124);
-      tft.setFreeFont(&FreeSansBold9pt7b);
-      tft.print("0.15-22.6 GHz");
+      if (currentMenu == MAIN_MENU)
+      {
+        tft.pushImage(80, 100, 40, 35, (uint16_t*)FilterOFF);
+
+        tft.fillRect(127, 100, 120, 31, tft.color565(46, 116, 181));
+        tft.setTextColor(tft.color565(50, 50, 50), tft.color565(46, 116, 181));
+        tft.setCursor(127, 124);
+        tft.setFreeFont(&FreeSansBold9pt7b);
+        tft.print("0.15-22.6 GHz");
+      }
     }
 
   
@@ -1428,6 +1468,9 @@ static bool SweepCycleCompleted_ShouldStop() {
         // the sweep stopped by itself (Count reached) rather than because the
         // user pressed Stop - the GUI already reads every line sent over
         // serial during a sweep, so no new polling/query is required.
+        SetRfOnOff(false);
+        rfOutputEnabled = false;
+
         Serial.println("SWEEP:DONE");
         return true;
     }

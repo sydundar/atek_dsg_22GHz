@@ -10,30 +10,87 @@
 // ============================================================================
 // DSG 22.6 GHz - Professional SCPI Command Set and USB-CDC Communication Infrastructure
 // ============================================================================
-// SCPI-like Command Usage Examples (send over USB-CDC; responses shown after ->)
+// SCPI-like Command Reference (send over USB-CDC; responses shown after ->)
+// A leading ':' is accepted but not required by the command parser.
+// NOTE: The examples below document the CURRENT handler behavior in this firmware.
 // ----------------------------------------------------------------------------
-// *IDN?                     -> ATEK,DSG-22.6GHz,r1.0
-// *RST                      -> 0                      (reset to safe defaults)
-//                                                     (freq=1GHz, att=0, lo=0, filt=OFF, outp=OFF)
+// IDENTIFICATION / RESET
+// *IDN?                     -> ATEK,DSG-22.6GHz,r1.0   (device identification)
+// *RST                      -> Not Implemented yet!    (placeholder; no reset is performed)
 //
-// :FREQ 1.234GHz            -> 0                      (set PLL frequency; returns 0 if accepted)
-// :FREQ?                    -> 1234000000             (returns frequency in Hz)
+// CW FREQUENCY / POWER / RF PATH
+// :FREQ 1.234GHz            -> 0                       (set output frequency; Hz/kHz/MHz/GHz suffixes accepted)
+// :FREQ?                    -> 0                       (current query behavior; does not return stored frequency)
 //
-// :POW:ATT 12               -> 0                      (set global attenuator 0..31 dB)
-// :POW:ATT?                 -> 12                     (returns last set attenuation)
+// :POW:ATT 12               -> 0                       (set global attenuator, valid range 0..31 dB)
+// :POW:ATT?                 -> 12                      (returns cached attenuation; -303 if no cached value exists)
 //
-// :POW:OUTA 5               -> 0                      (set OUTA power 0..7)
-// :POW:OUTA?                -> 5                      (returns last set LO power)
+// :POW:OUTA 5               -> 0                       (set LMX OUTA power, valid range 0..7)
+// :POW:OUTA?                -> 5                       (returns cached OUTA power; -303 if unavailable)
+// :POW:OUTB 5               -> 0                       (set LMX OUTB power, valid range 0..7)
+// :POW:OUTB?                -> 5                       (returns cached OUTB power; -303 if unavailable)
+// :POW:LO 5                 -> 0 / 0                   (set OUTA and OUTB power together; two handler responses)
+// :POW:LO?                  -> OUTA / OUTB             (returns OUTA response followed by OUTB response)
 //
-// :FILT ON                  -> 1                      (enable filter; returns 1 if ON)
-// :FILT OFF                 -> 0                      (disable filter; returns 0 if OFF)
-// :FILT?                    -> 1 or 0                 (returns filter state)
+// :POW:LEV 6.0              -> 0                       (set calibrated target RF power in dBm)
+// :POW:LEV?                 -> 0                       (current query behavior)
 //
-// :OUTP ON                  -> 1                      (enable RF output path)
-// :OUTP OFF                 -> 0                      (disable RF output path)
-// :OUTP?                    -> 1 or 0                 (returns RF output state)
+// :FILT ON                  -> 1                       (enable filter path and recalculate power attenuation)
+// :FILT OFF                 -> 0                       (disable filter path and recalculate power attenuation)
+// :FILT?                    -> 1 or 0                  (returns cached filter state; -303 if unavailable)
 //
-// :ADC:READ 4               -> 41.500000              (float reading from channel 4)
+// :OUTP ON                  -> 1                       (enable RF output path)
+// :OUTP OFF                 -> 0                       (disable RF output path)
+// :OUTP?                    -> 0                       (current query behavior)
+//
+// PLL REGISTER ACCESS
+// :PLL:WRITE 0x4F,00E0      -> 0                       (write PLL register; data argument is hexadecimal)
+// :PLL:READ 0x4F            -> 00E0                    (read PLL register; returns 4-digit hexadecimal value)
+//
+// MCP23S17 I/O EXPANDER ACCESS
+// :IOEXP:WRITE 18,255       -> 0                       (write expander 1 register; address/data are decimal)
+// :IOEXP:WRITE 1,18,255     -> 0                       (same command with explicit expander number)
+// :IOEXP:READ 18            -> 255                     (read expander 1 register; returns decimal value)
+// :IOEXP:READ 1,18          -> 255                     (same command with explicit expander number)
+//
+// ADC / TELEMETRY ALIASES
+// :ADC:READ 4               -> 0.xxxxxx                (read raw ADC channel voltage)
+// :GET:TEMP 4               -> 0.xxxxxx                (currently routed to ADC:READ; channel argument is required)
+// :GET:CURRENT 3            -> 0.xxxxxx                (currently routed to ADC:READ; channel argument is required)
+// :GET:VOLTAGE 2            -> 0.xxxxxx                (currently routed to ADC:READ; channel argument is required)
+// :GET:LD 4                 -> 0.xxxxxx                (currently routed to ADC:READ; channel argument is required)
+//
+// DISPLAY CONTROL
+// :DISP:MENU CW             -> 0                       (switch display to CW/Main menu)
+// :DISP:MENU MAIN           -> 0                       (same as CW)
+// :DISP:MENU SWP            -> 0                       (switch display to Sweep menu)
+// :DISP:MENU SWEEP          -> 0                       (same as SWP)
+// :DISP:MENU?               -> CW / SWP / UNKNOWN      (returns current display menu state)
+//
+// SWEEP SETTINGS / CONTROL
+// :SWEEP:STAR 300MHz        -> 0                       (set sweep start frequency)
+// :SWEEP:STOP 22600MHz      -> 0                       (set sweep stop frequency)
+// :SWEEP:STEP 100MHz        -> 0                       (set sweep frequency step)
+// :SWEEP:DWEL 1             -> 0                       (set sweep dwell value in ms)
+// :SWEEP:COUN 0             -> 0                       (set sweep cycle count; 0 = run forever)
+// :SWEEP:POW 10             -> 0                       (set sweep target power in dBm)
+// :SWEEP:TYPE LIN           -> 0                       (set linear sweep)
+// :SWEEP:TYPE LOG           -> 0                       (set logarithmic sweep)
+// :SWEEP:INIT               -> 0                       (reset sweep position/count, enable RF, and start sweep)
+// :SWEEP:ABOR               -> 0                       (abort sweep and disable RF output)
+// :SWEEP:POW:LEV 10         -> 0                       (routes to the same calibrated handler as POW:LEV)
+// NOTE: SWEEP setting/control queries currently return 0.
+//
+// CALIBRATION MANAGEMENT
+// :CAL:CLEAR                -> 0                       (clear calibration table from RAM)
+// :CAL:SER SN_002           -> 0                       (set device serial number; required format SN_XXX)
+// :CAL:SER?                 -> SN_002                  (return current device serial number)
+// :CAL:DATA 200,1,2,3,4,5,6 -> 0                       (append one calibration point: freq + 6 attenuation values)
+// :CAL:SAVE                 -> 0                       (save calibration table and device serial number to NVS)
+//
+// GUI / STATE SYNCHRONIZATION
+// :SYNC?                    -> { ... }                 (return current CW/Sweep/display state as JSON)
+// :SYNC                     -> -109,Query only command (SYNC is query-only)
 // ============================================================================
 
 // --- EXTERNAL LINKS FOR DISPLAY (display.cpp) VARIABLES AND FUNCTIONS ---
@@ -90,6 +147,8 @@ extern bool AddCalibrationPoint(uint16_t f, int8_t a1, int8_t a2, int8_t a3, int
 extern String AmpValueForMainMenu;
 extern String enteredAmpValue;
 extern String currentAmplitude;
+extern String deviceSerial;
+extern String apSSID;
 
 // Frequency tracking to prevent a 0 MHz fallback condition
 static double g_last_freq_hz = 1000e6;
@@ -114,6 +173,7 @@ static void h_pow_lev(char*, int);
 static void h_cal_clear(char*, int);
 static void h_cal_data(char*, int);
 static void h_cal_save(char*, int);
+static void h_cal_serial(char*, int);
 static void h_sync(char*, int);
 
 // --- DISPLAY CONTROL COMMAND ---
@@ -172,6 +232,7 @@ static const scpi_cmd_t scpi_table[] = {
   { "POW:LEV",       h_pow_lev     },
   { "SWEEP:POW:LEV", h_pow_lev     }, // Route the Sweep screen power setting to the same power-control handler
   { "CAL:CLEAR",     h_cal_clear   },
+  { "CAL:SER",   h_cal_serial },
   { "CAL:DATA",      h_cal_data    },
   { "CAL:SAVE",      h_cal_save    },
   { "SYNC",          h_sync        }  // Synchronization command
@@ -525,7 +586,7 @@ static void h_pow_lev(char *args, int q) {
   SetAttenuator((uint8_t)finalAtt); // Apply the raw physical attenuation value to the hardware
 
   // Store and display the requested target power value in dBm
-  String targetStr = String(targetDBm, 1);
+  String targetStr = (targetDBm == 0.0) ? "0" : String(targetDBm, 1);
   AmpValueForMainMenu = targetStr;
   enteredAmpValue = targetStr;
   currentAmplitude = targetStr;
@@ -539,6 +600,44 @@ static void h_pow_lev(char *args, int q) {
 }
 
 // --- CALIBRATION MANAGEMENT COMMANDS ---
+
+static void h_cal_serial(char *args, int q) {
+    if (q) {
+        rc_writeln(deviceSerial.c_str());
+        return;
+    }
+
+    if (!args || !*args) {
+        rc_writeln("-109,Missing parameter");
+        return;
+    }
+
+    char serialBuf[16] = {0};
+    strncpy(serialBuf, args, sizeof(serialBuf) - 1);
+
+    // Büyük harfe çevir
+    for (int i = 0; serialBuf[i]; i++) {
+        serialBuf[i] = (char)toupper((unsigned char)serialBuf[i]);
+    }
+
+    // Beklenen format: SN_002
+    if (strlen(serialBuf) != 6 ||
+        strncmp(serialBuf, "SN_", 3) != 0 ||
+        !isdigit(serialBuf[3]) ||
+        !isdigit(serialBuf[4]) ||
+        !isdigit(serialBuf[5])) {
+
+        rc_writeln("-104,Invalid serial format");
+        return;
+    }
+
+    deviceSerial = String(serialBuf);
+    // Update Wi-Fi name according to the new serial number
+    apSSID = "ATEK_DSG_22.6GHz_" + deviceSerial;
+
+    rc_writeln("0");
+}
+
 static void h_cal_clear(char *args, int q) { ClearCalibrationRAM(); rc_writeln("0"); }
 static void h_cal_save(char *args, int q) { SaveCalibrationToNVS(); rc_writeln("0"); }
 static void h_cal_data(char *args, int q) {

@@ -1,4 +1,6 @@
 import sys
+import os
+import re
 import time
 import datetime
 import serial.tools.list_ports
@@ -775,6 +777,23 @@ class DSGMainWindow(QMainWindow):
         if not filepath:
             return
 
+        # Calibration file name must start with SN_XXX_
+        # Example: SN_002_Calib_Optimized_FILT_F.csv
+        filename = os.path.basename(filepath)
+        serial_match = re.match(r"^(SN_\d{3})_", filename, re.IGNORECASE)
+
+        if not serial_match:
+            QMessageBox.warning(
+                self,
+                "Invalid Calibration File Name",
+                "Calibration file name must start with SN_XXX_ format.\n\n"
+                "Example: SN_002_Calib_Optimized_FILT_F.csv"
+            )
+            self.append_log(f"[ERR] Invalid calibration file name: {filename}")
+            return
+
+        device_serial = serial_match.group(1).upper()
+
         try:
             with open(filepath, 'r', encoding='utf-8-sig', errors='ignore') as f:
                 lines = f.readlines()
@@ -783,7 +802,10 @@ class DSGMainWindow(QMainWindow):
                 self.append_log("[ERR] CSV file is empty or invalid!")
                 return
 
+            self.append_log(f"[CAL] Device Serial Number: {device_serial}")
             self.append_log("[CAL] Reading calibration data...")
+
+            self.worker.send_cmd(f":CAL:SER {device_serial}")
             self.worker.send_cmd(":CAL:CLEAR")
 
             success_count = 0
@@ -836,6 +858,7 @@ class DSGMainWindow(QMainWindow):
 
             self.append_log(f"[CAL] Transfer Complete! {success_count} rows uploaded to device in total.")
             QMessageBox.information(self, "Upload Complete",
+                                    f"Device Serial Number: {device_serial}\n\n"
                                     f"A total of {success_count} frequency points were transferred to the device.\n"
                                     f"The device has saved this data to its persistent memory.")
 
