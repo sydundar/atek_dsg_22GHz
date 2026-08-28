@@ -405,6 +405,13 @@ class DSGMainWindow(QMainWindow):
         self.sw_type = QComboBox()
         self.sw_type.addItems(["Linear (LIN)", "Logarithmic (LOG)"])
 
+        # Sweep uses the same physical filter state as CW. Keep both selectors synchronized.
+        self.sw_filt = QComboBox()
+        self.sw_filt.addItems(["Filter: OFF (0.15-22.6 GHz)", "Filter: ON (2-18 GHz)"])
+        self.sw_filt.setCurrentIndex(self.combo_filt.currentIndex())
+        self.combo_filt.currentIndexChanged.connect(self.sync_filter_from_cw)
+        self.sw_filt.currentIndexChanged.connect(self.sync_filter_from_sweep)
+
         sw_layout.addWidget(QLabel("Start:"), 0, 0);
         sw_layout.addWidget(self.sw_start, 0, 1);
         sw_layout.addWidget(self.sw_start_u, 0, 2)
@@ -424,8 +431,10 @@ class DSGMainWindow(QMainWindow):
         sw_layout.addWidget(self.sw_pow, 4, 1, 1, 2)
         sw_layout.addWidget(QLabel("Type:"), 5, 0);
         sw_layout.addWidget(self.sw_type, 5, 1, 1, 2)
-        sw_layout.addWidget(QLabel("Sweep Count (0 = ∞):"), 6, 0);
-        sw_layout.addWidget(self.sw_count, 6, 1, 1, 2)
+        sw_layout.addWidget(QLabel("Filter:"), 6, 0);
+        sw_layout.addWidget(self.sw_filt, 6, 1, 1, 3)
+        sw_layout.addWidget(QLabel("Sweep Count (0 = ∞):"), 7, 0);
+        sw_layout.addWidget(self.sw_count, 7, 1, 1, 2)
 
         btn_apply_sw = QPushButton("LOAD SWEEP SETTINGS")
         btn_apply_sw.clicked.connect(self.apply_sweep_settings)
@@ -436,9 +445,9 @@ class DSGMainWindow(QMainWindow):
             f"background-color: {COLOR_SUCCESS}; color: #000; font-size: 12pt; padding: 12px; font-weight: bold;")
         self.btn_sweep_toggle.clicked.connect(self.toggle_sweep)
 
-        sw_layout.addWidget(btn_apply_sw, 7, 0, 1, 4)
-        sw_layout.addWidget(self.btn_sweep_toggle, 8, 0, 1, 4)
-        sw_layout.setRowStretch(9, 1)
+        sw_layout.addWidget(btn_apply_sw, 8, 0, 1, 4)
+        sw_layout.addWidget(self.btn_sweep_toggle, 9, 0, 1, 4)
+        sw_layout.setRowStretch(10, 1)
         self.tabs.addTab(tab_sweep, "📈 Sweep")
 
         # --- TAB 3: SETTINGS ---
@@ -534,6 +543,20 @@ class DSGMainWindow(QMainWindow):
         self.refresh_ports()
         self.update_freq_step()
 
+    def sync_filter_from_cw(self, index):
+        """Keep the Sweep filter selector synchronized with the CW filter selector."""
+        if self.sw_filt.currentIndex() != index:
+            self.sw_filt.blockSignals(True)
+            self.sw_filt.setCurrentIndex(index)
+            self.sw_filt.blockSignals(False)
+
+    def sync_filter_from_sweep(self, index):
+        """Keep the CW filter selector synchronized with the Sweep filter selector."""
+        if self.combo_filt.currentIndex() != index:
+            self.combo_filt.blockSignals(True)
+            self.combo_filt.setCurrentIndex(index)
+            self.combo_filt.blockSignals(False)
+
     def set_preset(self, target, val, unit):
         if target == "start":
             self.sw_start.setValue(val)
@@ -617,6 +640,7 @@ class DSGMainWindow(QMainWindow):
             self.lbl_pll.setStyleSheet(
                 f"background-color: #11111b; padding: 8px; border-radius: 4px; font-size: 13pt; font-weight: bold; color: {COLOR_WARNING};")
             self.lbl_fw_version.setText("Firmware: --")
+            self.sw_filt.setEnabled(True)
 
             self.rf_state = False
             self.btn_rf.setText("RF OUTPUT: OFF")
@@ -660,6 +684,7 @@ class DSGMainWindow(QMainWindow):
             return
 
         self.worker.send_cmd(":DISP:MENU SWP")
+        self.worker.send_cmd(f":FILT {'ON' if self.sw_filt.currentIndex() == 1 else 'OFF'}")
 
         self.worker.send_cmd(f":SWEEP:STAR {self.sw_start.value()}{self.sw_start_u.currentText()}")
         self.worker.send_cmd(f":SWEEP:STOP {self.sw_stop.value()}{self.sw_stop_u.currentText()}")
@@ -680,6 +705,7 @@ class DSGMainWindow(QMainWindow):
 
     def start_sweep(self):
         self.worker.is_sweeping = True
+        self.sw_filt.setEnabled(False)
         self.worker.send_cmd(":DISP:MENU SWP")
         self.worker.send_cmd(":SWEEP:INIT")
 
@@ -706,6 +732,7 @@ class DSGMainWindow(QMainWindow):
         self._reset_sweep_ui(">>> Sweep finished (reached configured Count).")
 
     def _reset_sweep_ui(self, log_text):
+        self.sw_filt.setEnabled(True)
         self.btn_sweep_toggle.setText("▶ START SWEEP")
         self.btn_sweep_toggle.setStyleSheet(
             f"background-color: {COLOR_SUCCESS}; color: #000; font-size: 12pt; padding: 12px; font-weight: bold;")
@@ -938,7 +965,9 @@ class DSGMainWindow(QMainWindow):
             self.spin_freq.setValue(float(data.get("cw_freq", 1000)))
             self.combo_unit.setCurrentText(data.get("cw_unit", "MHz"))
             self.spin_att.setValue(float(data.get("cw_amp", 0)))
-            self.combo_filt.setCurrentIndex(int(data.get("filt", 0)))
+            filter_index = 1 if int(data.get("filt", 0)) else 0
+            self.combo_filt.setCurrentIndex(filter_index)
+            self.sw_filt.setCurrentIndex(filter_index)
 
             self.sw_start.setValue(float(data.get("sw_start", 300)))
             self.sw_start_u.setCurrentText(data.get("sw_start_u", "MHz"))
