@@ -96,6 +96,7 @@ The **Sweep** tab configures the DSG to automatically scan across a range of fre
 | **Dwell (ms)** | The amount of time, in milliseconds, that the device holds/transmits at each individual frequency step before moving to the next one. |
 | **Target Power (dBm)** | The output power level (in dBm) used throughout the sweep. |
 | **Type** | The frequency progression mode for the sweep: **Linear (LIN)** or **Logarithmic**. |
+| **Filter** | Toggles the internal filter **ON** or **OFF**. |
 | **Count** | The number of full sweep cycles (Start → Stop) to run before stopping automatically. Set to **0** to sweep continuously (infinite). |
 | **LOAD SWEEP SETTINGS** | Sends the configured sweep parameters (Start, Stop, Step, Dwell, Power, Type,Count) from the UI to the device. |
 | **START SWEEP** | Begins the sweep using the most recently loaded settings. |
@@ -107,8 +108,10 @@ The **Sweep** tab configures the DSG to automatically scan across a range of fre
 4. Set the **Dwell (ms)** — how long the device stays on each frequency point.
 5. Set the **Target Power (dBm)**.
 6. Choose the **Type** (Linear or Logarithmic).
-7. Click **LOAD SWEEP SETTINGS** to push the configuration to the device.
-8. Click **START SWEEP** to begin scanning across the configured frequency range.
+7. Choose the **Filter** mode. (The filter cannot be changed while sweep mode is running.)
+8. Choose the **Count**.
+9. Click **LOAD SWEEP SETTINGS** to push the configuration to the device.
+10. Click **START SWEEP** to begin scanning across the configured frequency range.
 
 ---
 ## Settings Tab
