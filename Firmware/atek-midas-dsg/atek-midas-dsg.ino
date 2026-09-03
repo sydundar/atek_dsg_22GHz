@@ -300,7 +300,7 @@ void setup() {
   
   InitADC();
   Serial.print("\r\n");
-  InitADC();
+  
 
   temp = Read_Temp(); 
   last_usb_voltage = Read_5V_Voltage();
@@ -312,9 +312,27 @@ void setup() {
   ConnectionStatus("Wait...", true);  delay(1000);
 
   InitPLL();
-  bool Filtered = true;
+  
   SetFilter(FilterStatus);
-  Lmx2820SetFreqinMHz(6000, 10000000, FilterStatus);
+
+  // Convert the saved CW frequency to MHz
+double startupFreqMHz = currentFrequency.toDouble();
+
+if (currentFreqUnit == "KHz")
+{
+    startupFreqMHz /= 1000.0;
+}
+else if (currentFreqUnit == "MHz")
+{
+    // Already in MHz
+}
+else if (currentFreqUnit == "GHz")
+{
+    startupFreqMHz *= 1000.0;
+}
+
+  // Apply the saved frequency to the PLL
+Lmx2820SetFreqinMHz(startupFreqMHz, 10000000, FilterStatus);
 }
 
 // --------------------------------------------------------------
@@ -987,19 +1005,17 @@ void Fan_Init(void)
 {
     gpio_reset_pin((gpio_num_t)FAN_PIN);
     gpio_set_direction((gpio_num_t)FAN_PIN, GPIO_MODE_OUTPUT);
-    gpio_set_level((gpio_num_t)FAN_PIN, 0);   
+    gpio_set_level((gpio_num_t)FAN_PIN, 0);
 }
 
 void Fan_Control(float temp_val)
 {
-    // Turn ON the fan if temperature exceeds 45.0 C
-    if (!fanState && temp_val >= 45.0)
+    if (!fanState && temp_val >= FAN_ON_TEMP)
     {
         gpio_set_level((gpio_num_t)FAN_PIN, 1);
         fanState = 1;
     }
-    // Turn OFF the fan if temperature falls below 40.0 C
-    else if (fanState && temp_val <= 40.0)
+    else if (fanState && temp_val <= FAN_OFF_TEMP)
     {
         gpio_set_level((gpio_num_t)FAN_PIN, 0);
         fanState = 0;

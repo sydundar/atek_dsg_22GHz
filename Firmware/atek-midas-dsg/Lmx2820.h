@@ -21,7 +21,7 @@ void DumpPLLRegisters();
 #define VCO_MIN 5650000000  // 5.65 GHz
 #define VCO_MAX 11300000000 // 11.3 GHz
 
-#define  MIN_FREQ 45000000
+#define  MIN_FREQ 150000000
 #define  MAX_FREQ 22600000000
 
 #endif

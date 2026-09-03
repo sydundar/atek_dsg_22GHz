@@ -8,7 +8,7 @@
 
 #define FAN_PIN        GPIO_NUM_1          // GPIO where the fan control line is connected
 #define FAN_ON_TEMP    45.0    // Temperature to turn the fan ON (°C)
-#define FAN_OFF_TEMP   38.0    // Temperature to turn the fan OFF (°C) - hysteresis
+#define FAN_OFF_TEMP   40.0    // Temperature to turn the fan OFF (°C) - hysteresis
 
 extern String currentFrequency; 
 extern String currentAmplitude;  
@@ -28,6 +28,6 @@ char* DoubleToChar(double num);
 void saveRFSettings();
 void readRFSettings();
 void Fan_Init(void);
-void Fan_Control(void);
+void Fan_Control(float temp_val);
 
 #endif

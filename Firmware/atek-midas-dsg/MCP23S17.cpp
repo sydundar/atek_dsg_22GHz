@@ -205,8 +205,8 @@ void SetFilterBand(double Freq)
     if (Freq >= 2000 && Freq <= 3000)       { A = 0; B = 0; C = 0; } // Band 1
     else if (Freq > 3000 && Freq <= 5000)   { A = 1; B = 0; C = 1; } // Band 2
     else if (Freq > 5000 && Freq <= 8300)   { A = 0; B = 1; C = 0; } // Band 3
-    else if (Freq > 8300 && Freq <= 11300)  { A = 1; B = 1; C = 0; } // Band 4
-    else if (Freq > 11300 && Freq <= 13300) { A = 1; B = 0; C = 0; } // Band 5
+    else if (Freq > 8300 && Freq <= 11700)  { A = 1; B = 1; C = 0; } // Band 4
+    else if (Freq > 11700 && Freq <= 13300) { A = 1; B = 0; C = 0; } // Band 5
     else if (Freq > 13300 && Freq <= 18000) { A = 0; B = 0; C = 1; } // Band 6
     else
     {

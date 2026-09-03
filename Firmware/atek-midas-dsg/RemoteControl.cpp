@@ -457,17 +457,27 @@ static void h_freq(char *args, int q) {
   if (q) { rc_writeln("0"); return; }
   if (!args || !*args) { rc_writeln("-109,Missing parameter"); return; }
 
-  int ok=0; 
+  int ok = 0;
   double hz = parse_freq_to_hz(args, &ok);
-  if (!ok || hz<=0)    { rc_writeln("-104,Data type error"); return; }
 
-  double fMHz = hz / 1e6;     
+
+  if (!ok || hz <= 0) {
+    rc_writeln("-104,Data type error");
+    return;
+  }
+
+
+  if (hz < MIN_FREQ || hz > MAX_FREQ) {
+    rc_writeln("-222,Data out of range");
+    return;
+  }
+
+  double fMHz = hz / 1e6;
   SetFilterBand(fMHz);
   ApplyFrequency(hz);
-  
-  // Store the last valid frequency to keep the active RF state consistent
-  g_last_freq_hz = hz; 
-  
+
+  g_last_freq_hz = hz;
+
   rc_writeln("0");
 }
 
@@ -781,25 +791,54 @@ static void h_disp_menu(char *args, int q) {
 
 static void h_sweep_start(char *args, int q) {
     if (q) { rc_writeln("0"); return; }
-    int ok=0; double hz = parse_freq_to_hz(args, &ok);
-    if (!ok || hz<=0) { rc_writeln("-104,Data type error"); return; }
+
+    int ok=0;
+    double hz = parse_freq_to_hz(args, &ok);
+
+    if (!ok || hz<=0) {
+        rc_writeln("-104,Data type error");
+        return;
+    }
+
+    if (hz < MIN_FREQ || hz > MAX_FREQ) {
+        rc_writeln("-222,Data out of range");
+        return;
+    }
+
     StartValueForSweepMenu = format_mhz(hz);
     StartUnitForSweepMenu = "MHz";
+
     if (currentMenu == SWEEP_MENU) {
         SetStartFreqOnSweepMenu(StartValueForSweepMenu); 
     }
+
     rc_writeln("0");
 }
 
 static void h_sweep_stop(char *args, int q) {
     if (q) { rc_writeln("0"); return; }
-    int ok=0; double hz = parse_freq_to_hz(args, &ok);
-    if (!ok || hz<=0) { rc_writeln("-104,Data type error"); return; }
+
+    int ok=0;
+    double hz = parse_freq_to_hz(args, &ok);
+
+    if (!ok || hz<=0) {
+        rc_writeln("-104,Data type error");
+        return;
+    }
+
+    // Minimum 150 MHz, maximum 22.6 GHz
+    if (hz < MIN_FREQ || hz > MAX_FREQ) {
+        rc_writeln("-222,Data out of range");
+        return;
+    }
+
     StopValueForSweepMenu = format_mhz(hz);
     StopUnitForSweepMenu = "MHz";
+
     if (currentMenu == SWEEP_MENU) {
-        SetStopFreqOnSweepMenu(StopValueForSweepMenu); 
+        SetStopFreqOnSweepMenu(StopValueForSweepMenu);
     }
+
     rc_writeln("0");
 }
 

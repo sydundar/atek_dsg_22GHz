@@ -409,9 +409,20 @@ bool checkenteredFreqValue(String FreqVal) {
 
       // STOP: must be greater than START and ≤ MAX_FREQ
       case STOP_MENU: {
-        double startHz = StartValueForSweepMenu.toDouble() * 1e6;  // Always MHz base
+        double startHz = StartValueForSweepMenu.toDouble();  // Always MHz base
+        if (StartUnitForSweepMenu == "KHz") {
+          startHz *= 1e3;
+        }
+        else if (StartUnitForSweepMenu == "MHz") {
+          startHz *= 1e6;
+        }
+        else if (StartUnitForSweepMenu == "GHz") {
+          startHz *= 1e9;
+        }
+
         if (freqValue < startHz || freqValue > MAX_FREQ)
           outOfRange = true;
+        
         break;
       }
 
@@ -1128,11 +1139,11 @@ void SetFilter(bool FilState)
 
     double freqValue = tempFreq.toDouble();
 
-    if (enteredUnitValue == "KHz") {
+    if (FreqUnitForMainMenu == "KHz") {
         freqValue *= 1000.0;
-    } else if (enteredUnitValue == "MHz") {
+    } else if (FreqUnitForMainMenu == "MHz") {
         freqValue *= 1000000.0;
-    } else if (enteredUnitValue == "GHz") {
+    } else if (FreqUnitForMainMenu == "GHz") {
         freqValue *= 1000000000.0;
     }
     double fMHz = freqValue / 1e6;
