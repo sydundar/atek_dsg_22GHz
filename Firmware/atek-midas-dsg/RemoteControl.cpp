@@ -312,6 +312,11 @@ static void h_filt(char *args, int q) {
   int on = parse_onoff(args, &ok);   
   if (!ok) { rc_writeln("-104,Data type error"); return; }
 
+  if (isSweepRunning) {
+    rc_writeln("-221,Settings conflict");
+    return;
+  }
+
   ApplyFilter(on != 0);
   g_filter_cached = on ? 1 : 0;
   // --- Recalculate the attenuator whenever the filter state changes ---

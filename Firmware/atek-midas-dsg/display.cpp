@@ -1427,9 +1427,13 @@ void SetSCountOnSweepMenu(String value)
 
 void ApplyFilter(bool enable) {
     FilterStatus = enable;
-    SetFilterState(FilterStatus);
-    if (currentMenu == MAIN_MENU) {
-        SetFilter(FilterStatus);
+
+    // Apply the complete filter hardware configuration.
+    SetFilter(FilterStatus);
+
+    // Keep the Sweep menu icon synchronized with the actual filter state.
+    if (currentMenu == SWEEP_MENU) {
+        SetFilterOnSweepMenu(FilterStatus);
     }
 }
 
