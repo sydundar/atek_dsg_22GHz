@@ -215,7 +215,7 @@ void Lmx2820SetFreqinMHz_Fast(double target_freq , double ref_clock)
 	    double N_fractional_final = (double)PLL_NUM / PLL_DEN;
 
  
-    uint32_t CHDIVA;
+    uint32_t CHDIVA, CHDIVB;
 
     switch (output_divider) {
         case 2:   CHDIVA = 0; break;
@@ -228,8 +228,7 @@ void Lmx2820SetFreqinMHz_Fast(double target_freq , double ref_clock)
         default:  CHDIVA = 7;  
                   break;
     }
-
-  uint32_t OUTA_MUX;
+    CHDIVB = CHDIVA;
 
     if (target_freq < VCO_MIN) 
     {
@@ -244,8 +243,13 @@ void Lmx2820SetFreqinMHz_Fast(double target_freq , double ref_clock)
     {
         OUTA_MUX = 0x2;// Doubler
     }
+    
+    OUTB_MUX = OUTA_MUX;
 
-
+    uint32_t R78 = (OUTA_PD << 4) | OUTA_MUX;
+    uint32_t R79 = (OUTB_PD << 8) | (OUTB_MUX << 4) | ((OUTA_PWR & 0x7u) << 1);
+    uint32_t R80 = ((OUTB_PWR & 0x7u) << 6);
+    
 	    // Register values.
 	    uint32_t reg_N = PLL_N;
 	    uint32_t reg_NUM1 = (PLL_NUM >> 16) & 0xFFFF;
@@ -253,13 +257,17 @@ void Lmx2820SetFreqinMHz_Fast(double target_freq , double ref_clock)
 	    uint32_t reg_DEN1 = (PLL_DEN >> 16) & 0xFFFF;
 	    uint32_t reg_DEN2 = PLL_DEN & 0xFFFF;
 
-	    uint32_t reg_R_DIV = ((CHDIVA) << 6) | 0x1001;
+	    uint32_t reg_R_DIV = ((CHDIVA) << 6) | ((CHDIVB) << 9) | 0x1001;
       uint16_t read_val;
 
       PLL_write(0x2C, 0x8000);
       PLL_write(0x24, reg_N);
       PLL_write(0x2B, reg_NUM2);
-      PLL_write(0x4E, OUTA_MUX);
+
+      PLL_write(0x50, R80);
+      PLL_write(0x4F, R79);
+      PLL_write(0x4E, R78);
+
       PLL_write(0x2A, reg_NUM1);
       PLL_write(0x27, reg_DEN2);
       PLL_write(0x26, reg_DEN1);

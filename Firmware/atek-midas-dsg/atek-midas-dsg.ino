@@ -404,6 +404,7 @@ void InitServer()
   server.on("/toggleRFOutput", handleToggleRFOutput);
   server.on("/toggleSweep", handleToggleSweep);
   server.on("/telemetry", handleTelemetry); 
+  server.on("/getSettings", handleGetSettings);
 
   server.begin();
 }
