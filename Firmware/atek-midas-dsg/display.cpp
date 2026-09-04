@@ -367,12 +367,12 @@ void GetTouchData(int x, int y) {
         {
           sweepCycleCount = 0; // Reset cycle counter every time a sweep run is (re)started.
           tft.pushImage(270, 125, 36, 36, (uint16_t*)Pause);
-          SetPLL1OnOff(true);
+          SetRfOnOff(true);
         }
         else
         {
           tft.pushImage(270, 125, 36, 36, (uint16_t*)Play);
-          SetPLL1OnOff(false);
+          SetRfOnOff(false);
         }
       }
     } // End of SWEEP_MENU handling
@@ -1202,6 +1202,8 @@ void SetBITStatus(bool value)
 void SetRfOnOff(bool value)
 {
     CurrentRFStatus = value;
+    rfOutputEnabled = value;
+
     SetPLL1OnOff(value); // Send the command directly to the hardware.
 
     // Always refresh the icon.
