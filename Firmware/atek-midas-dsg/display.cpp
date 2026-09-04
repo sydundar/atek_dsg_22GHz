@@ -1179,6 +1179,7 @@ void SetFilter(bool FilState)
         tft.setFreeFont(&FreeSansBold9pt7b);
         tft.print("0.15-22.6 GHz");
       }
+      Lmx2820SetFreqinMHz(fMHz, 10000000, false);
     }
 
   
